@@ -46,25 +46,22 @@
     <button id="tabCheckin" class="secondary">Check In</button>
   </div>
 
-  <!-- PROFILE -->
+ <!-- PROFILE -->
   <section id="profileView" class="card">
     <h3 style="margin-top:0">Personal profile</h3>
     <label for="firstName">First name *</label>
     <input id="firstName" autocomplete="given-name">
     <label for="lastName">Last name *</label>
     <input id="lastName" autocomplete="family-name">
-    <label for="title">Title / role</label>
-    <input id="title" autocomplete="organization-title">
-    <label for="company">Company</label>
-    <input id="company" autocomplete="organization">
-    <label for="email">Email</label>
-    <input id="email" type="email" autocomplete="email">
+    <label for="location">Preferred location</label>
+    <input id="location" autocomplete="off">
     <label for="phone">Phone</label>
     <input id="phone" type="tel" autocomplete="tel">
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="email">
     <button id="saveProfile">Save profile</button>
     <div id="profileStatus" class="status"></div>
   </section>
-
   <!-- CHECK IN -->
   <section id="checkinView" class="card hidden">
     <h3 style="margin-top:0">Check in to a session</h3>
