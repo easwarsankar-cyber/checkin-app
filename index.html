@@ -53,10 +53,7 @@
     <input id="firstName" autocomplete="given-name">
     <label for="lastName">Last name *</label>
     <input id="lastName" autocomplete="family-name">
-    <label for="title">Title / role</label>
-    <input id="title" autocomplete="organization-title">
-    <label for="company">Company</label>
-    <input id="company" autocomplete="organization">
+    <label for="location">Preferred location</label>
     <label for="email">Email</label>
     <input id="email" type="email" autocomplete="email">
     <label for="phone">Phone</label>
@@ -97,7 +94,7 @@
   };
 
   const PROFILE_KEY = "checkin.profile";
-  const PROFILE_FIELDS = ["firstName", "lastName", "title", "company", "email", "phone"];
+  const PROFILE_FIELDS = ["firstName", "lastName", "location", "email", "phone"];
   const $ = id => document.getElementById(id);
 
   let scanner = null;
@@ -233,8 +230,7 @@
       timestamp: new Date().toISOString(),
       firstName: profile.firstName,
       lastName: profile.lastName,
-      title: profile.title || "",
-      company: profile.company || "",
+      location: profile.location || "",
       email: profile.email || "",
       phone: profile.phone || "",
       message: $("message").value.trim(),
