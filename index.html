@@ -8,7 +8,7 @@
 <title>Session Check-In</title>
 <style>
   :root { --bg:#f5f6f8; --card:#ffffff; --text:#1d1f24; --muted:#6b7280; --accent:#2563eb; --ok:#16a34a; --err:#dc2626; }
-  * { box-sizing/: border-box; }
+  * { box-sizing: border-box; }
   body {
     margin: 0; font-family: system-ui, -apple-system, Roboto, sans-serif;
     background: var(--bg); color: var(--text);
@@ -43,7 +43,7 @@
 <main>
   <div class="tabs card">
     <button id="tabCheckin">Check-in</button>
-    <button id="tabProfile" class="secondary">Check-in</button>
+    <button id="tabProfile" class="secondary">Profile</button>
   </div>
 
   <!-- CHECK IN -->
@@ -90,9 +90,9 @@
 <script>
   // ====== CONFIGURATION ======
   // Paste the Web App URL from your Google Apps Script deployment here.
-  https://script.google.com/macros/s/AKfycbzl75R7jLN3FYu2q8WfrNYzu3j5LYeDcNJpYy7He-cVBPsDkPXdDcHFdEt4ciJN2v0PKw/exec
+  
   const CONFIG = {
-    APPS_SCRIPT_URL: "PASTE_YOUR_WEB_APP_URL_HERE"
+    APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzl75R7jLN3FYu2q8WfrNYzu3j5LYeDcNJpYy7He-cVBPsDkPXdDcHFdEt4ciJN2v0PKw/exec"
   };
 
   const PROFILE_KEY = "checkin.profile";
@@ -132,10 +132,19 @@
       return;
     }
     localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
-    setStatus("profileStatus", "Profile saved.", "ok");
+    sendProfileToSheet(p);
+    setStatus("profileStatus", "Profile saved. Check the Profiles tab to confirm.", "ok");
   }
-  $("saveProfile").onclick = saveProfile;
 
+  function sendProfileToSheet(p) {
+    if (CONFIG.APPS_SCRIPT_URL.startsWith("PASTE")) return;
+    fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "profile", ...p })
+    }).catch(() => {});
+  }
   // ---------- Status helper ----------
   function setStatus(id, text, cls = "") {
     const el = $(id);
