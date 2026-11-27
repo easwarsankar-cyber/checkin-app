@@ -90,3 +90,192 @@
 <script>
   // ====== CONFIGURATION ======
   const CONFIG = {
+    APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzl75R7jLN3FYu2q8WfrNYzu3j5LYeDcNJpYy7He-cVBPsDkPXdDcHFdEt4ciJN2v0PKw/exec"
+  };
+
+  const PROFILE_KEY = "checkin.profile";
+  const PROFILE_FIELDS = ["firstName", "lastName", "location", "phone", "email"];
+  const $ = id => document.getElementById(id);
+
+  let scanner = null;
+  let session = null; // { location, date }
+
+  // ---------- Status helper ----------
+  function setStatus(id, text, cls = "") {
+    const el = $(id);
+    el.textContent = text;
+    el.className = "status " + cls;
+  }
+
+  // ---------- Tabs ----------
+  function showTab(name) {
+    const isProfile = name === "profile";
+    $("profileView").classList.toggle("hidden", !isProfile);
+    $("checkinView").classList.toggle("hidden", isProfile);
+    $("tabProfile").classList.toggle("secondary", !isProfile);
+    $("tabCheckin").classList.toggle("secondary", isProfile);
+    if (isProfile) stopScan();
+  }
+
+  // ---------- Profile ----------
+  function getProfile() {
+    try {
+      return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function loadProfile() {
+    const p = getProfile();
+    PROFILE_FIELDS.forEach(f => $(f).value = p[f] || "");
+  }
+
+  function saveProfile() {
+    const p = {};
+    PROFILE_FIELDS.forEach(f => p[f] = $(f).value.trim());
+    if (!p.firstName || !p.lastName) {
+      setStatus("profileStatus", "First and last name are required.", "err");
+      return;
+    }
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+    sendProfileToSheet(p);
+    setStatus("profileStatus", "Profile saved. Check the Profiles tab to confirm.", "ok");
+  }
+
+  function sendProfileToSheet(p) {
+    if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.startsWith("PASTE")) return;
+    fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "profile", ...p })
+    }).catch(() => {});
+  }
+
+  // ---------- QR parsing ----------
+  // Accepts JSON like {"location":"Room 4B","date":"2026-11-25"} or plain text (treated as the location).
+  function parseSession(text) {
+    const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+    try {
+      const obj = JSON.parse(text);
+      if (obj && typeof obj === "object") {
+        return {
+          location: String(obj.location || obj.session || "Unknown").trim(),
+          date: String(obj.date || today).trim()
+        };
+      }
+    } catch (_) { /* not JSON */ }
+    return { location: text.trim(), date: today };
+  }
+
+  // ---------- Scanning ----------
+  async function startScan() {
+    if (!window.Html5Qrcode) {
+      setStatus("checkinStatus", "Scanner library failed to load. Check your internet connection.", "err");
+      return;
+    }
+    setStatus("checkinStatus", "");
+    $("reader").classList.remove("hidden");
+    $("stopBtn").classList.remove("hidden");
+    $("scanBtn").classList.add("hidden");
+
+    scanner = new Html5Qrcode("reader");
+    try {
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 240, height: 240 } },
+        onScanSuccess,
+        () => {}
+      );
+    } catch (err) {
+      setStatus("checkinStatus", "Camera unavailable. Allow camera access and try again.", "err");
+      stopScan();
+    }
+  }
+
+  async function stopScan() {
+    if (scanner) {
+      try {
+        if (scanner.isScanning) await scanner.stop();
+        scanner.clear();
+      } catch (_) { /* ignore */ }
+      scanner = null;
+    }
+    $("reader").classList.add("hidden");
+    $("stopBtn").classList.add("hidden");
+    $("scanBtn").classList.remove("hidden");
+  }
+
+  async function onScanSuccess(decodedText) {
+    await stopScan();
+    session = parseSession(decodedText);
+    $("sessLocation").textContent = session.location;
+    $("sessDate").textContent = session.date;
+    $("sessionInfo").classList.remove("hidden");
+    $("submitBtn").disabled = false;
+    setStatus("checkinStatus", "Session scanned. Add a message and send.", "ok");
+  }
+
+  // ---------- Check-in submit ----------
+  async function submitCheckIn() {
+    if (!session) {
+      setStatus("checkinStatus", "Scan a session QR code first.", "err");
+      return;
+    }
+    if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.startsWith("PASTE")) {
+      setStatus("checkinStatus", "The backend URL is not set in the app code.", "err");
+      return;
+    }
+    const profile = getProfile();
+    if (!profile.firstName) {
+      setStatus("checkinStatus", "Save your profile first.", "err");
+      showTab("profile");
+      return;
+    }
+
+    const payload = {
+      timestamp: new Date().toISOString(),
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      location: profile.location || "",
+      email: profile.email || "",
+      phone: profile.phone || "",
+      message: $("message").value.trim(),
+      sessionLocation: session.location,
+      sessionDate: session.date
+    };
+
+    $("submitBtn").disabled = true;
+    setStatus("checkinStatus", "Sending...");
+    try {
+      await fetch(CONFIG.APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      setStatus("checkinStatus", "Check-in sent!", "ok");
+      session = null;
+      $("sessionInfo").classList.add("hidden");
+      $("message").value = "";
+    } catch (err) {
+      setStatus("checkinStatus", "Failed to send. Check your connection and try again.", "err");
+      $("submitBtn").disabled = false;
+    }
+  }
+
+  // ---------- Event wiring ----------
+  $("tabCheckin").onclick = () => showTab("checkin");
+  $("tabProfile").onclick = () => showTab("profile");
+  $("saveProfile").onclick = saveProfile;
+  $("scanBtn").onclick = startScan;
+  $("stopBtn").onclick = stopScan;
+  $("submitBtn").onclick = submitCheckIn;
+
+  // ---------- Init ----------
+  loadProfile();
+  showTab("checkin");
+</script>
+</body>
+</html>
