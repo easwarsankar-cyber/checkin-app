@@ -8,7 +8,7 @@
 <title>Session Check-In</title>
 <style>
   :root { --bg:#f5f6f8; --card:#ffffff; --text:#1d1f24; --muted:#6b7280; --accent:#2563eb; --ok:#16a34a; --err:#dc2626; }
-  * { box-sizing: border-box; }
+  * { box-sizing/: border-box; }
   body {
     margin: 0; font-family: system-ui, -apple-system, Roboto, sans-serif;
     background: var(--bg); color: var(--text);
@@ -111,9 +111,9 @@
     $("tabCheckin").classList.toggle("secondary", isProfile);
     if (isProfile) stopScan();
   }
-  $("tabProfile").onclick = () => showTab("profile");
   $("tabCheckin").onclick = () => showTab("checkin");
-
+  $("tabProfile").onclick = () => showTab("profile");
+  
   // ---------- Profile ----------
   function getProfile() {
     return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
