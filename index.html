@@ -42,8 +42,8 @@
 
 <main>
   <div class="tabs card">
-    <button id="tabCheckin">Check-in</button>
-    <button id="tabProfile" class="secondary">Profile</button>
+    <button id="tabCheckin" class="secondary">Check-in</button>
+    <button id="tabProfile">Profile</button>
   </div>
 
   <!-- CHECK IN -->
@@ -61,7 +61,7 @@
 
     <label for="message">Check-in message</label>
     <textarea id="message" placeholder="e.g. Arrived, ready for the session"></textarea>
-                                                                                                                                                                              
+
     <button id="submitBtn" disabled>Send check-in</button>
     <div id="checkinStatus" class="status"></div>
   </section>
@@ -74,7 +74,7 @@
     <label for="lastName">Last name *</label>
     <input id="lastName" autocomplete="family-name">
     <label for="location">Preferred location</label>
-    <input id="location" autocomplete="location">
+    <input id="location" autocomplete="off">
     <label for="email">Email</label>
     <input id="email" type="email" autocomplete="email">
     <label for="phone">Phone</label>
@@ -89,8 +89,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
   // ====== CONFIGURATION ======
-  // Paste the Web App URL from your Google Apps Script deployment here.
-  
   const CONFIG = {
     APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzl75R7jLN3FYu2q8WfrNYzu3j5LYeDcNJpYy7He-cVBPsDkPXdDcHFdEt4ciJN2v0PKw/exec"
   };
@@ -102,6 +100,13 @@
   let scanner = null;
   let session = null; // { location, date }
 
+  // ---------- Status helper ----------
+  function setStatus(id, text, cls = "") {
+    const el = $(id);
+    el.textContent = text;
+    el.className = "status " + cls;
+  }
+
   // ---------- Tabs ----------
   function showTab(name) {
     const isProfile = name === "profile";
@@ -111,12 +116,14 @@
     $("tabCheckin").classList.toggle("secondary", isProfile);
     if (isProfile) stopScan();
   }
-  $("tabCheckin").onclick = () => showTab("checkin");
-  $("tabProfile").onclick = () => showTab("profile");
-  
+
   // ---------- Profile ----------
   function getProfile() {
-    return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+    try {
+      return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+    } catch (_) {
+      return {};
+    }
   }
 
   function loadProfile() {
@@ -137,7 +144,7 @@
   }
 
   function sendProfileToSheet(p) {
-    if (CONFIG.APPS_SCRIPT_URL.startsWith("PASTE")) return;
+    if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.startsWith("PASTE")) return;
     fetch(CONFIG.APPS_SCRIPT_URL, {
       method: "POST",
       mode: "no-cors",
@@ -145,16 +152,9 @@
       body: JSON.stringify({ action: "profile", ...p })
     }).catch(() => {});
   }
-  // ---------- Status helper ----------
-  function setStatus(id, text, cls = "") {
-    const el = $(id);
-    el.textContent = text;
-    el.className = "status " + cls;
-  }
 
   // ---------- QR parsing ----------
-  // Accepts either JSON like {"location":"Room 4B","date":"2026-11-25"}
-  // or plain text, which is treated as the location.
+  // Accepts JSON like {"location":"Room 4B","date":"2026-11-25"} or plain text (treated as the location).
   function parseSession(text) {
     const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
     try {
@@ -186,7 +186,7 @@
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 240, height: 240 } },
         onScanSuccess,
-        () => {} // ignore per-frame decode misses
+        () => {}
       );
     } catch (err) {
       setStatus("checkinStatus", "Camera unavailable. Allow camera access and try again.", "err");
@@ -217,16 +217,13 @@
     setStatus("checkinStatus", "Session scanned. Add a message and send.", "ok");
   }
 
-  $("scanBtn").onclick = startScan;
-  $("stopBtn").onclick = stopScan;
-
-  // ---------- Submit ----------
+  // ---------- Check-in submit ----------
   async function submitCheckIn() {
     if (!session) {
       setStatus("checkinStatus", "Scan a session QR code first.", "err");
       return;
     }
-    if (CONFIG.APPS_SCRIPT_URL.startsWith("PASTE")) {
+    if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.startsWith("PASTE")) {
       setStatus("checkinStatus", "The backend URL is not set in the app code.", "err");
       return;
     }
@@ -252,7 +249,6 @@
     $("submitBtn").disabled = true;
     setStatus("checkinStatus", "Sending...");
     try {
-      // Apps Script web apps don't return CORS headers, so the response is opaque.
       await fetch(CONFIG.APPS_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
@@ -268,6 +264,13 @@
       $("submitBtn").disabled = false;
     }
   }
+
+  // ---------- Event wiring ----------
+  $("tabCheckin").onclick = () => showTab("checkin");
+  $("tabProfile").onclick = () => showTab("profile");
+  $("saveProfile").onclick = saveProfile;
+  $("scanBtn").onclick = startScan;
+  $("stopBtn").onclick = stopScan;
   $("submitBtn").onclick = submitCheckIn;
 
   // ---------- Init ----------
