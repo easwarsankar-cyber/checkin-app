@@ -1,6 +1,6 @@
 {
-  "name": "Sahaja Meditation Session Check-In",
-  "short_name": "Check-In",
+  "name": "Sahaja Yoga Meditation Session Check-In",
+  "short_name": "SY Check-In",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
